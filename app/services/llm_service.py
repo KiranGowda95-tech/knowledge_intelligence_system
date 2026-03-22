@@ -5,6 +5,8 @@ from config import Config
 
 class LLMService:
     def __init__(self,vector_store):
+        self.vector_store=vector_store
+        
         self.llm=ChatOpenAI(
             temperature=0.7,
             model_name='gpt-3.5-turbo',
@@ -16,9 +18,9 @@ class LLMService:
             return_messages=True
         )
 
-        self.chain=ConversationalRetrievalChain(
+        self.chain=ConversationalRetrievalChain.from_llm(
             llm=self.llm,
-            retriever=vector_store.vectore_store.as_retriever(),
+            retriever=self.vector_store.as_retriever(),
             memory=self.memory
         )
 

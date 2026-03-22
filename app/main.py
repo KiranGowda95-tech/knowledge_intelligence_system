@@ -5,16 +5,31 @@ from config import Config
 import os
 from langchain.document_loaders import TextLoader,PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+# from langchain.vectorstores import FAISS
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import Chroma
+
 import tempfile
 import logging
 from flask import Flask, request,render_template,jsonify
 
 app=Flask(__name__)
 
+embeddings=OpenAIEmbeddings()
 
-vector_store=VectorStore(Config.VECTOR_DB_PATH)
+# vector_store=FAISS.load_local("faiss_index",embeddings)
+Vector_store=Chroma(
+    persist_directory='db',
+    embedding_function=embeddings
+)
+
+# vector_store=VectorStore(Config.VECTOR_DB_PATH)
 storage_service=S3Storage()
-llm_service=LLMService(vector_store)
+llm_service=LLMService(Vector_store)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -55,6 +70,9 @@ def process_document(file):
             os.remove(temp_path)
         os.rmdir(temp_dir)
 
+# @app.route('/')
+# def home():
+#     return "API is running 🚀"
         
 @app.route('/upload',methods=['POST'])
 def upload_document():
@@ -70,7 +88,7 @@ def upload_document():
             return jsonify({'error':'No file selected'}),400
         
         #Check file extension 
-        if not file.filename.endswith(('.text','.pdf')):
+        if not file.filename.endswith(('.txt', '.pdf')):
             logger.warning(f"Unsupported file type:{file.filename}")
             return jsonify({'error':'only .text and .pdf file are supported'}),400
 
@@ -109,7 +127,7 @@ def upload_document():
         return jsonify({'error':f'Unexpected error: {str(e)}'}),500
     
 
-@app.route('query',methods=['POST'])
+@app.route('/query',methods=['GET','POST'])
 def query():
     data=request.json
     if 'question' not in data:
